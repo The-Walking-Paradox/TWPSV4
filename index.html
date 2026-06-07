@@ -4842,9 +4842,15 @@ async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId
       error: function(e){ encodeErr = e; }
     });
 
-    // Exact same config as the test page that worked on iPhone
+    // Pick H.264 level based on resolution
+    // Level 3.1 (1f) max 1280x720, Level 4.0 (28) max 2048x1024, Level 5.1 (33) max 4096x2304
+    var pixels = W * H;
+    var codecStr = pixels <= 921600 ? 'avc1.42001f'   // ≤1280×720: Baseline L3.1
+                 : pixels <= 2097152 ? 'avc1.640028'  // ≤1920×1088: High L4.0
+                 : 'avc1.640033';                      // larger: High L5.1
+    statusEl.textContent = 'Configuring '+codecStr+' for '+W+'×'+H+'...';
     encoder.configure({
-      codec: 'avc1.42001f',
+      codec: codecStr,
       width: W,
       height: H,
       bitrate: 4000000,
