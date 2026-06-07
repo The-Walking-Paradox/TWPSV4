@@ -4888,26 +4888,15 @@ async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId
     if(progEl) progEl.style.width='100%';
     if(progLbl) progLbl.textContent='100%';
 
-    // Try navigator.share first (iPhone → Save to Photos)
-    var shared = false;
-    if(navigator.canShare){
-      try{
-        var file = new File([blob], 'walkingparadox-'+modeKey+'.mp4', {type:'video/mp4'});
-        if(navigator.canShare({files:[file]})){
-          statusEl.innerHTML='✅ MP4 ready ('+sizeMB+' MB) — saving...';
-          await navigator.share({files:[file]});
-          shared=true;
-          statusEl.innerHTML='✅ MP4 saved! ('+sizeMB+' MB)';
-        }
-      }catch(e){
-        if(e.name!=='AbortError') console.log('Share failed, falling back to download');
-      }
-    }
-
-    if(!shared){
-      dlBlob(blob, 'walkingparadox-'+modeKey+'.mp4');
-      statusEl.innerHTML='✅ MP4 downloaded! ('+sizeMB+' MB)';
-    }
+    // Save — same method as test page that worked on iPhone
+    var fname = 'walkingparadox-'+modeKey+'.mp4';
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = fname;
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+    statusEl.innerHTML='✅ MP4 exported! ('+sizeMB+' MB)';
     setToast('MP4 video exported!');
 
   }catch(e){
@@ -5832,7 +5821,7 @@ function nInit(){
 const VDIMS={vertical:{W:1080,H:1920},square:{W:1080,H:1080}};
 const vCv=document.getElementById('vCv');const vg=vCv.getContext('2d');
 const vS={fmt:'vertical',bg:'himalaya',listTitle:'Top 10 List',items:Array.from({length:5},()=>({name:'',stat:'',unit:''})),itemCount:5,exportMethod:'zip',raf:null,frame:0,playing:false,busy:false,srPlaying:false};
-const VT={INTRO:60,PER:90,OUTRO:90};
+const VT={INTRO:120,PER:90,OUTRO:90};
 function vTotal(){
   // Use actual number of filled items
   const count=vS.items.filter(i=>i.name.trim()).length||1;
