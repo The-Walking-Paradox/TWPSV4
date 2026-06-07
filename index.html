@@ -4807,6 +4807,30 @@ async function doWebmExport(cv,renderFn,totalFn,modeKey,progId,progLblId,statusI
 // MP4 EXPORT — uses VideoEncoder + mp4-muxer
 // Works on iPhone Safari 16.4+, Chrome, Firefox
 // ═══════════════════════════════════════════════════
+
+// MP4 save function — called when user taps Save to Photos button
+async function _saveMp4(){
+  if(!window._mp4Blob){ setToast('No MP4 to save. Export first.'); return; }
+  try{
+    var file = new File([window._mp4Blob], window._mp4Name||'video.mp4', {type:'video/mp4'});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file]});
+      setToast('MP4 saved!');
+    } else {
+      // Fallback: download link
+      var url = URL.createObjectURL(window._mp4Blob);
+      var a = document.createElement('a');
+      a.href = url; a.download = window._mp4Name||'video.mp4';
+      a.click();
+      setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
+      setToast('MP4 downloaded!');
+    }
+  }catch(e){
+    if(e.name !== 'AbortError') setToast('Save failed: ' + e.message);
+  }
+}
+window._saveMp4 = _saveMp4;
+
 async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId,setBusy){
   if(typeof VideoEncoder === 'undefined'){
     document.getElementById(statusId).innerHTML='❌ VideoEncoder not supported.';
@@ -4888,16 +4912,14 @@ async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId
     if(progEl) progEl.style.width='100%';
     if(progLbl) progLbl.textContent='100%';
 
-    // Save — same method as test page that worked on iPhone
-    var fname = 'walkingparadox-'+modeKey+'.mp4';
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = fname;
-    a.click();
-    setTimeout(function(){ URL.revokeObjectURL(url); }, 10000);
-    statusEl.innerHTML='✅ MP4 exported! ('+sizeMB+' MB)';
-    setToast('MP4 video exported!');
+    // Store blob globally so save button can access it
+    window._mp4Blob = blob;
+    window._mp4Name = 'walkingparadox-'+modeKey+'.mp4';
+
+    // Show save button — same flow as test page that worked
+    statusEl.innerHTML = '✅ MP4 ready! ('+sizeMB+' MB)<br>'
+      + '<button onclick="_saveMp4()" style="margin-top:10px;padding:14px 28px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;border:none;background:#3ecf8e;color:#0c0d15;font-family:inherit">📤 Save to Photos</button>';
+    setToast('MP4 ready — tap Save to Photos!');
 
   }catch(e){
     statusEl.innerHTML='❌ MP4 export failed: '+e.message+'<br><small style="color:#a09b8e">Canvas: '+cv.width+'×'+cv.height+'</small>';
