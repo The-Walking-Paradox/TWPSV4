@@ -4809,52 +4809,56 @@ async function doWebmExport(cv,renderFn,totalFn,modeKey,progId,progLblId,statusI
 // ═══════════════════════════════════════════════════
 async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId,setBusy){
   if(typeof VideoEncoder === 'undefined'){
-    document.getElementById(statusId).innerHTML='❌ VideoEncoder not supported on this browser.';
+    document.getElementById(statusId).innerHTML='❌ VideoEncoder not supported.';
     return;
   }
   if(typeof Mp4Muxer === 'undefined'){
-    document.getElementById(statusId).innerHTML='❌ MP4 muxer library not loaded.';
+    document.getElementById(statusId).innerHTML='❌ MP4 muxer not loaded.';
     return;
   }
   setBusy(true);
   var total=totalFn();
-  var W=cv.width, H=cv.height;
   var statusEl=document.getElementById(statusId);
   var progEl=document.getElementById(progId);
   var progLbl=document.getElementById(progLblId);
-  statusEl.textContent='Initializing MP4 encoder...';
 
   try{
+    // Render first frame to set canvas to full resolution
+    renderFn(0);
+    var W=cv.width, H=cv.height;
+    if(W%2!==0) W--;
+    if(H%2!==0) H--;
+    statusEl.textContent='Encoding '+W+'×'+H+' at '+FPS+'fps...';
+
     var muxer = new Mp4Muxer.Muxer({
       target: new Mp4Muxer.ArrayBufferTarget(),
       video: { codec:'avc', width:W, height:H },
       fastStart: 'in-memory',
     });
 
-    var encodeDone = false;
     var encodeErr = null;
-
     var encoder = new VideoEncoder({
       output: function(chunk, meta){ muxer.addVideoChunk(chunk, meta); },
       error: function(e){ encodeErr = e; }
     });
 
+    // Exact same config as the test page that worked on iPhone
     encoder.configure({
       codec: 'avc1.42001f',
       width: W,
       height: H,
-      bitrate: 5000000,
+      bitrate: 4000000,
       framerate: FPS,
     });
 
     for(var i=0; i<total; i++){
       renderFn(i);
+
       var vf = new VideoFrame(cv, {
         timestamp: i * (1000000 / FPS),
         duration: Math.round(1000000 / FPS),
       });
-      var isKey = i % FPS === 0;
-      encoder.encode(vf, { keyFrame: isKey });
+      encoder.encode(vf, { keyFrame: i%FPS===0 });
       vf.close();
 
       if(encodeErr) throw encodeErr;
@@ -4873,36 +4877,35 @@ async function doMp4Export(cv,renderFn,totalFn,modeKey,progId,progLblId,statusId
 
     var buf = muxer.target.buffer;
     var blob = new Blob([buf], {type:'video/mp4'});
-    var sizeKB = (blob.size/1024).toFixed(0);
+    var sizeMB = (blob.size/1048576).toFixed(1);
 
     if(progEl) progEl.style.width='100%';
     if(progLbl) progLbl.textContent='100%';
 
-    // Try navigator.share first (iPhone saves to Photos)
+    // Try navigator.share first (iPhone → Save to Photos)
     var shared = false;
     if(navigator.canShare){
       try{
         var file = new File([blob], 'walkingparadox-'+modeKey+'.mp4', {type:'video/mp4'});
         if(navigator.canShare({files:[file]})){
-          statusEl.innerHTML='✅ MP4 ready! ('+sizeKB+' KB) — Share sheet opening...';
+          statusEl.innerHTML='✅ MP4 ready ('+sizeMB+' MB) — saving...';
           await navigator.share({files:[file]});
           shared=true;
-          statusEl.innerHTML='✅ MP4 saved! ('+sizeKB+' KB)';
+          statusEl.innerHTML='✅ MP4 saved! ('+sizeMB+' MB)';
         }
       }catch(e){
         if(e.name!=='AbortError') console.log('Share failed, falling back to download');
       }
     }
 
-    // Fallback: regular download
     if(!shared){
       dlBlob(blob, 'walkingparadox-'+modeKey+'.mp4');
-      statusEl.innerHTML='✅ MP4 downloaded! ('+sizeKB+' KB)';
+      statusEl.innerHTML='✅ MP4 downloaded! ('+sizeMB+' MB)';
     }
     setToast('MP4 video exported!');
 
   }catch(e){
-    statusEl.innerHTML='❌ MP4 export failed: '+e.message;
+    statusEl.innerHTML='❌ MP4 export failed: '+e.message+'<br><small style="color:#a09b8e">Canvas: '+cv.width+'×'+cv.height+'</small>';
     console.error('MP4 export error:', e);
   }
   setBusy(false);
