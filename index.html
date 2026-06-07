@@ -5843,7 +5843,7 @@ function nInit(){
 const VDIMS={vertical:{W:1080,H:1920},square:{W:1080,H:1080}};
 const vCv=document.getElementById('vCv');const vg=vCv.getContext('2d');
 const vS={fmt:'vertical',bg:'himalaya',listTitle:'Top 10 List',items:Array.from({length:5},()=>({name:'',stat:'',unit:''})),itemCount:5,exportMethod:'zip',raf:null,frame:0,playing:false,busy:false,srPlaying:false};
-const VT={INTRO:120,PER:90,OUTRO:90};
+const VT={INTRO:240,PER:90,OUTRO:90};
 function vTotal(){
   // Use actual number of filled items
   const count=vS.items.filter(i=>i.name.trim()).length||1;
